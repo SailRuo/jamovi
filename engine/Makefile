@@ -1,21 +1,26 @@
-
+﻿
 # This Makefile would like Make 2.8 or above
 
 PREFIX=
 LIBDIR=
 CFLAGS=
+MFLAGS=%MFLAGS%
 CXXFLAGS=
 
 ifneq (,)
 R_PATH=
 endif
 
-ifneq (C:/Program\ Files/jamovi/Resources/modules/base/R,)
-BASE_MODULE_PATH=C:/Program\ Files/jamovi/Resources/modules/base/R
+ifneq (,)
+BASE_MODULE_PATH=
 endif
 
-ifneq (C:/Program\ Files/jamovi/Frameworks/R,)
-R_HOME=C:/Program\ Files/jamovi/Frameworks/R
+ifneq (,)
+R_HOME=
+endif
+
+ifneq (,)
+LIBDIR=
 endif
 
 ifeq ($(OS),Windows_NT)
@@ -36,7 +41,7 @@ endif
 
 SRCDIR ?= $(dir $(firstword $(MAKEFILE_LIST)))
 TARGET = jamovi-engine
-CXXFLAGS += -std=c++17
+CXXFLAGS += -std=c++11
 INCLUDES += -I.
 
 ifeq ($(os),OSX)
@@ -50,7 +55,7 @@ ifeq ($(os),OSX)
 				-lboost_filesystem \
 				-lboost_system \
 				-framework Foundation
-	MFLAGS = -mmacosx-version-min=10.13
+	MFLAGS += -mmacosx-version-min=10.13
 	CXXFLAGS += $(MFLAGS)
 else
 ifeq ($(os),Linux)
@@ -62,7 +67,8 @@ ifeq ($(os),Linux)
 				-L$(BASE_MODULE_PATH)/RInside/lib \
 				-lboost_filesystem \
 				-lpthread \
-				$(foreach rp,$(R_PATH),-Wl,-rpath,'$(rp)')
+				$(foreach rp,$(R_PATH),-Wl,-rpath,'$(rp)') \
+				$(foreach p,$(LIBDIR),-L$(p))
 else
 	BINDIR ?= bin
 	R_HOME ?= $(SRCDIR)/../../../Frameworks/R
@@ -76,7 +82,6 @@ else
 				-lboost_nowide-mt-x64 \
 				-lbcrypt \
 				-lprotobuf -labsl_log_internal_check_op -labsl_die_if_null -labsl_log_internal_conditions -labsl_log_internal_message -labsl_examine_stack -labsl_log_internal_format -labsl_log_internal_nullguard -labsl_log_internal_structured_proto -labsl_log_internal_proto -labsl_log_internal_log_sink_set -labsl_log_sink -labsl_log_entry -labsl_flags_internal -labsl_flags_marshalling -labsl_flags_reflection -labsl_flags_private_handle_accessor -labsl_flags_commandlineflag -labsl_flags_commandlineflag_internal -labsl_flags_config -labsl_flags_program_name -labsl_log_initialize -labsl_log_internal_globals -labsl_log_globals -labsl_vlog_config_internal -labsl_log_internal_fnmatch -labsl_raw_hash_set -labsl_hash -labsl_city -labsl_low_level_hash -labsl_hashtablez_sampler -labsl_random_distributions -labsl_random_seed_sequences -labsl_random_internal_pool_urbg -labsl_random_internal_randen -labsl_random_internal_randen_hwaes -labsl_random_internal_randen_hwaes_impl -labsl_random_internal_randen_slow -labsl_random_internal_platform -labsl_random_internal_seed_material -lbcrypt -labsl_random_seed_gen_exception -labsl_statusor -labsl_status -labsl_cord -labsl_cordz_info -labsl_cord_internal -labsl_cordz_functions -labsl_exponential_biased -labsl_cordz_handle -labsl_crc_cord_state -labsl_crc32c -labsl_crc_internal -labsl_crc_cpu_detect -labsl_leak_check -labsl_bad_optional_access -labsl_strerror -labsl_str_format_internal -labsl_synchronization -labsl_graphcycles_internal -labsl_kernel_timeout_internal -labsl_stacktrace -labsl_symbolize -ldbghelp -labsl_debugging_internal -labsl_demangle_internal -labsl_demangle_rust -labsl_decode_rust_punycode -labsl_utf8_for_code_point -labsl_malloc_internal -labsl_tracing_internal -labsl_time -labsl_civil_time -labsl_time_zone -labsl_bad_variant_access -lutf8_validity -lutf8_range -labsl_strings -labsl_strings_internal -labsl_string_view -labsl_base -ladvapi32 -labsl_spinlock_wait -labsl_int128 -labsl_throw_delegate -labsl_raw_logging_internal -labsl_log_severity
-
 
 	# _WIN32_WINNT is for SHGetKnownFolderPath
 
@@ -97,8 +102,7 @@ INCLUDES += \
 	-I$(R_HOME)/include \
 	-I$(BASE_MODULE_PATH)/RInside/include \
 	-I$(BASE_MODULE_PATH)/Rcpp/include \
-	-I/usr/share/R/include \
-	-IC:/nanomsg/include
+	-I/usr/share/R/include
 
 LDFLAGS += -lR -lnanomsg -lprotobuf -lRInside
 
@@ -120,24 +124,30 @@ ifeq ($(os),OSX)
 endif
 
 $(TARGET): $(OBJS)
+	mkdir -p $(@D)
 	$(CXX) -o $@ $^ $(CXXFLAGS) $(LDFLAGS)
 
 jamovi.pb.cc: $(SRCDIR)/../server/jamovi/server/jamovi.proto
 	protoc --cpp_out=. --proto_path=$(SRCDIR)/../server/jamovi/server $(SRCDIR)/../server/jamovi/server/jamovi.proto
 
 jamovi.pb.cc.o: jamovi.pb.cc
+	mkdir -p $(@D)
 	$(CXX) -c -o $@ $^ $(CXXFLAGS) $(INCLUDES)
 
 ../server/jamovi/common/%.cpp.o: $(SRCDIR)/../server/jamovi/common/%.cpp
+	mkdir -p $(@D)
 	$(CXX) -c -o $@ $^ $(CXXFLAGS) $(INCLUDES)
 
 ../server/jamovi/common/%.m.o: $(SRCDIR)/../server/jamovi/common/%.m
+	mkdir -p $(@D)
 	$(CXX) -c -o $@ $^ $(MFLAGS) $(INCLUDES)
 
 engine/%.cpp.o: $(SRCDIR)/engine/%.cpp
+	mkdir -p $(@D)
 	$(CXX) -c -o $@ $^ $(CXXFLAGS) $(INCLUDES)
 
 engine/%.res.o: $(SRCDIR)/engine/%.rc $(SRCDIR)/engine/%.manifest
+	mkdir -p $(@D)
 	windres -I $(<D) -i $< -o $@ -O coff
 
 all: $(TARGET)
@@ -146,6 +156,7 @@ clean:
 	rm -f $(TARGET) $(OBJS) jamovi.pb.cc jamovi.pc.h
 
 install:
+	mkdir -p $(DESTDIR)$(PREFIX)/$(BINDIR)
 	cp $(TARGET) $(DESTDIR)$(PREFIX)/$(BINDIR)
 
 .PHONY:	clean all install

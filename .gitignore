@@ -31,3 +31,7 @@ __pycache__
 /server/jamovi/hydra/
 /modules/
 /bin/
+
+# release artifacts
+dist/
+
